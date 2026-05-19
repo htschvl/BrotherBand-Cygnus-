@@ -1,0 +1,23 @@
+# Binaries
+/bin/
+/dist/
+*.test
+*.out
+
+# Local env / secrets
+.env
+.env.*.local
+
+# Editor
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Go build cache leakage (rare)
+/.cache/
+
+# Coverage
+coverage.out
+coverage.html

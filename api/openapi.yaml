@@ -1,0 +1,998 @@
+openapi: 3.1.0
+info:
+  title: BrotherBand API (Cygnus)
+  version: "1.0.0"
+  description: |
+    Backend HTTP contract for the BrotherBand minimalist social network (Cygnus iteration).
+
+    ## Authentication
+
+    Cookie-based. A successful `POST /v1/auth/login` or `POST /v1/auth/register`
+    sets `bb_session` (httpOnly JWT, 30-day) and `bb_csrf` (readable, 32-byte random).
+    Every state-changing request must echo the `bb_csrf` value back as the
+    `X-CSRF-Token` header.
+
+    All timestamps are RFC 3339. All IDs are UUIDv4 strings.
+
+    ## Error model
+
+    Every non-2xx response uses the `Error` schema: a stable `code`, a
+    user-safe `message`, the `requestId`, and — on validation failures —
+    a structured `details` object. **Switch on `code`, never on `message`.**
+
+    Stable `code` registry:
+
+    | code | HTTP | meaning |
+    |---|---|---|
+    | `user.username_taken` | 409 | username already registered |
+    | `user.invalid_credentials` | 401 | login failed (cause never disclosed) |
+    | `user.password_too_weak` | 422 | password policy not met |
+    | `user.invalid_username` / `_birthdate` / `_secret` / `_status` / `_favorites` | 422 | field-level validation failure |
+    | `user.not_found` | 404 | user does not exist |
+    | `brotherband.self_request` | 422 | cannot brotherband yourself |
+    | `brotherband.already_brothers` | 409 | relationship already exists |
+    | `brotherband.request_exists` | 409 | a pending request already exists |
+    | `brotherband.request_not_found` | 404 | no such request |
+    | `brotherband.not_a_brother` | 403 | not in a confirmed brotherhood |
+    | `brotherband.not_recipient` | 403 | only the recipient may act |
+    | `message.invalid_body` / `_attachment` / `_cursor` | 422 | field-level validation failure |
+    | `message.not_participant` | 403 | not a participant / not the sender |
+    | `message.not_found` / `message.conversation_not_found` | 404 | no such message / conversation |
+    | `media.unsupported_type` | 415 | content type not in allow-list |
+    | `media.payload_too_large` | 413 | exceeds the 10 MiB cap |
+    | `media.promotion_failed` | 409 | could not promote the pending object |
+    | `invalid_input` | 422 | generic validation failure (e.g. malformed JSON, bad UUID) |
+    | `unauthenticated` | 401 | missing/invalid session |
+    | `forbidden` | 403 | authenticated but not allowed |
+    | `not_found` | 404 | generic missing resource |
+    | `conflict` | 409 | generic state conflict |
+    | `csrf.mismatch` | 403 | CSRF token missing or mismatched |
+    | `rate_limited` | 429 | in-process rate limit tripped |
+    | `internal_error` | 500 | unexpected — report the `requestId` |
+
+    ## Observability
+
+    Every response carries an `X-Request-ID` header (generated server-side if
+    the client did not supply one). The same value appears in the `requestId`
+    error field and in every structured server log line for that request, so a
+    single id correlates a client failure with the exact server trace.
+  contact:
+    name: Clarice Hatischvili
+  license:
+    name: ISC
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://api.brotherband.app
+    description: Production
+
+tags:
+  - name: auth
+    description: Registration, login, logout, session lifecycle
+  - name: profile
+    description: Operations on the authenticated user's own profile
+  - name: brotherband
+    description: Brotherband (close-circle relationship) requests and management
+  - name: messages
+    description: Conversations and messages between brothers
+  - name: media
+    description: Direct-to-storage image upload orchestration
+  - name: health
+    description: Liveness and readiness probes
+
+paths:
+  # ─── Health ────────────────────────────────────────────────────────────────
+  /healthz:
+    get:
+      tags: [health]
+      operationId: getLiveness
+      summary: Liveness probe
+      security: []
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /readyz:
+    get:
+      tags: [health]
+      operationId: getReadiness
+      summary: Readiness probe (checks Postgres connectivity)
+      security: []
+      responses:
+        "200":
+          description: Service is ready to accept traffic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  # ─── Auth ──────────────────────────────────────────────────────────────────
+  /v1/auth/register:
+    post:
+      tags: [auth]
+      operationId: registerUser
+      summary: Register a new user account and start a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered; session and CSRF cookies are set
+          headers:
+            Set-Cookie:
+              description: Sets bb_session (httpOnly) and bb_csrf (readable)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: loginUser
+      summary: Authenticate with username + password and start a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated; session and CSRF cookies are set
+          headers:
+            Set-Cookie:
+              description: Sets bb_session (httpOnly) and bb_csrf (readable)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logoutUser
+      summary: Clear the session cookies (current device only)
+      description: |
+        Idempotent. Like register/login, this endpoint is exempt from the
+        CSRF double-submit check (the whole /auth group is) — forcing a
+        logout is a low-severity annoyance already blocked cross-site by
+        SameSite=Lax, and requiring the token would couple logout to a
+        cookie the caller may no longer hold.
+      security: []
+      responses:
+        "204":
+          description: Session cleared
+
+  # ─── Profile (the authenticated user) ──────────────────────────────────────
+  /v1/me:
+    get:
+      tags: [profile]
+      operationId: getMyProfile
+      summary: Get the authenticated user's full profile
+      responses:
+        "200":
+          description: Authenticated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/me/status:
+    patch:
+      tags: [profile]
+      operationId: updateMyStatus
+      summary: Update the authenticated user's status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusRequest"
+      responses:
+        "204":
+          description: Status updated
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /v1/me/avatar:
+    patch:
+      tags: [profile]
+      operationId: updateMyAvatar
+      summary: Promote a previously uploaded media key to the user's avatar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAvatarRequest"
+      responses:
+        "204":
+          description: Avatar updated
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Brotherband ───────────────────────────────────────────────────────────
+  /v1/brothers:
+    get:
+      tags: [brotherband]
+      operationId: listBrothers
+      summary: List all confirmed brothers of the authenticated user
+      responses:
+        "200":
+          description: List of brothers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [brothers]
+                properties:
+                  brothers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BrotherSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/brothers/{brotherId}:
+    get:
+      tags: [brotherband]
+      operationId: getBrotherProfile
+      summary: Get the public profile of a confirmed brother
+      parameters:
+        - $ref: "#/components/parameters/BrotherId"
+      responses:
+        "200":
+          description: Brother profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrotherProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [brotherband]
+      operationId: cutBrotherband
+      summary: Cut the brotherband with another user (mutual unfriend)
+      parameters:
+        - $ref: "#/components/parameters/BrotherId"
+      responses:
+        "204":
+          description: Brotherband cut
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/brotherband-requests:
+    get:
+      tags: [brotherband]
+      operationId: listBrotherbandRequests
+      summary: List pending brotherband requests (received and sent)
+      parameters:
+        - in: query
+          name: direction
+          required: false
+          schema:
+            type: string
+            enum: [received, sent, all]
+            default: all
+      responses:
+        "200":
+          description: Pending brotherband requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrotherbandRequestList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/brotherband-requests/send/{recipientId}:
+    post:
+      tags: [brotherband]
+      operationId: sendBrotherbandRequest
+      summary: Send a brotherband request to another user
+      parameters:
+        - $ref: "#/components/parameters/RecipientId"
+      responses:
+        "201":
+          description: Request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrotherbandRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/brotherband-requests/{requestId}/accept:
+    post:
+      tags: [brotherband]
+      operationId: acceptBrotherbandRequest
+      summary: Accept a received brotherband request and reveal the requester's secret
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "201":
+          description: Request accepted; the requester's secret is revealed exactly once
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrotherbandAcceptedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/brotherband-requests/{requestId}/deny:
+    post:
+      tags: [brotherband]
+      operationId: denyBrotherbandRequest
+      summary: Deny a received brotherband request
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "204":
+          description: Request denied
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Messages ──────────────────────────────────────────────────────────────
+  /v1/conversations:
+    get:
+      tags: [messages]
+      operationId: listConversations
+      summary: List the authenticated user's conversations (one per brother)
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [conversations]
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConversationSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/conversations/with/{brotherId}/messages:
+    get:
+      tags: [messages]
+      operationId: listMessagesWithBrother
+      summary: List messages exchanged with a specific brother (cursor-paginated, newest first)
+      parameters:
+        - $ref: "#/components/parameters/BrotherId"
+        - in: query
+          name: cursor
+          required: false
+          description: Opaque cursor returned by the previous page; omit for the first page
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Page of messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagePage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [messages]
+      operationId: sendMessageToBrother
+      summary: Send a message to a confirmed brother
+      parameters:
+        - $ref: "#/components/parameters/BrotherId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /v1/messages/{messageId}/attachment:
+    patch:
+      tags: [messages]
+      operationId: attachMediaToMessage
+      summary: Attach a previously uploaded media key to an existing message
+      parameters:
+        - $ref: "#/components/parameters/MessageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttachMediaRequest"
+      responses:
+        "200":
+          description: Attachment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Media ─────────────────────────────────────────────────────────────────
+  /v1/media/upload-url:
+    post:
+      tags: [media]
+      operationId: requestUploadUrl
+      summary: Request a short-lived presigned PUT URL for direct upload to R2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned URL and the media key to reference after upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresignedUpload"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+components:
+  parameters:
+    BrotherId:
+      in: path
+      name: brotherId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RecipientId:
+      in: path
+      name: recipientId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RequestId:
+      in: path
+      name: requestId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    MessageId:
+      in: path
+      name: messageId
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: bb_session
+    CsrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+
+    Error:
+      type: object
+      required: [code, message]
+      description: |
+        The uniform error envelope returned by every non-2xx response.
+
+        - `code` is a stable, machine-readable identifier — switch on this,
+          never on `message`. The full registry is documented in the API
+          description.
+        - `message` is a short human-readable summary, safe to surface to
+          end users. It never contains stack traces or internal detail.
+        - `requestId` echoes the `X-Request-ID` response header. Always
+          include it in bug reports — it correlates the client failure with
+          the exact server-side structured log line.
+        - `details` is present on validation failures. For a single bad
+          field it is `{ "field": "...", "reason": "..." }`; for a batch it
+          is `{ "fields": [ { "field": "...", "reason": "..." }, ... ] }`.
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable error code (see registry in the API description).
+          examples: [user.username_taken, message.invalid_body, unauthenticated, internal_error]
+        message:
+          type: string
+          description: Short, user-safe human-readable summary.
+        requestId:
+          type: string
+          description: Correlation id; also returned in the X-Request-ID header.
+        details:
+          type: object
+          description: Structured, error-specific payload. Present on 422 validation failures.
+          properties:
+            field:
+              type: string
+              description: The offending field (single-field validation failure).
+            reason:
+              type: string
+              description: Why the field was rejected.
+            fields:
+              type: array
+              description: Multiple field failures, when more than one was detected.
+              items:
+                type: object
+                required: [field, reason]
+                properties:
+                  field:
+                    type: string
+                  reason:
+                    type: string
+          additionalProperties: true
+
+    RegisterRequest:
+      type: object
+      required: [username, password, birthdate, secret, status, favorites]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: "^[a-zA-Z0-9_-]+$"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        birthdate:
+          type: string
+          format: date
+        secret:
+          type: string
+          description: Personal secret revealed to a user only when they accept this user's brotherband request
+          minLength: 1
+          maxLength: 280
+        status:
+          type: string
+          minLength: 1
+          maxLength: 280
+        favorites:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    UpdateStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          minLength: 1
+          maxLength: 280
+
+    UpdateAvatarRequest:
+      type: object
+      required: [mediaKey]
+      properties:
+        mediaKey:
+          type: string
+
+    UserProfile:
+      type: object
+      required: [id, username, status, favorites, registeredAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        status:
+          type: string
+        favorites:
+          type: array
+          items:
+            type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        registeredAt:
+          type: string
+          format: date-time
+
+    BrotherSummary:
+      type: object
+      required: [id, username, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        status:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        becameBrothersAt:
+          type: string
+          format: date-time
+
+    BrotherProfile:
+      allOf:
+        - $ref: "#/components/schemas/BrotherSummary"
+        - type: object
+          required: [favorites]
+          properties:
+            favorites:
+              type: array
+              items:
+                type: string
+
+    BrotherbandRequest:
+      type: object
+      required: [id, requesterId, recipientId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        requesterId:
+          type: string
+          format: uuid
+        requesterUsername:
+          type: string
+        recipientId:
+          type: string
+          format: uuid
+        recipientUsername:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    BrotherbandRequestList:
+      type: object
+      required: [received, sent]
+      properties:
+        received:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrotherbandRequest"
+        sent:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrotherbandRequest"
+
+    BrotherbandAcceptedResponse:
+      type: object
+      required: [brother, requesterSecret]
+      properties:
+        brother:
+          $ref: "#/components/schemas/BrotherSummary"
+        requesterSecret:
+          type: string
+          description: One-shot reveal of the requester's secret. Persist client-side; the server never returns it again.
+
+    ConversationSummary:
+      type: object
+      required: [conversationId, brother, lastMessageAt]
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        brother:
+          $ref: "#/components/schemas/BrotherSummary"
+        lastMessageAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastMessagePreview:
+          type: string
+          nullable: true
+        unreadCount:
+          type: integer
+
+    SendMessageRequest:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+
+    AttachMediaRequest:
+      type: object
+      required: [mediaKey]
+      properties:
+        mediaKey:
+          type: string
+
+    Message:
+      type: object
+      required: [id, conversationId, senderId, body, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          nullable: true
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageAttachment"
+
+    MessageAttachment:
+      type: object
+      required: [mediaKey, url, contentType, sizeBytes]
+      properties:
+        mediaKey:
+          type: string
+        url:
+          type: string
+          format: uri
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+
+    MessagePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        nextCursor:
+          type: string
+          nullable: true
+
+    RequestUploadUrlRequest:
+      type: object
+      required: [contentType, contentLength]
+      properties:
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        contentLength:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 10485760
+
+    PresignedUpload:
+      type: object
+      required: [uploadUrl, mediaKey, expiresAt]
+      properties:
+        uploadUrl:
+          type: string
+          format: uri
+        mediaKey:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+  headers:
+    XRequestID:
+      description: |
+        Per-request correlation id. Generated by the server if the client
+        did not supply one on the request. Echoed on every response (success
+        and error) and mirrored in the `requestId` field of error bodies.
+      schema:
+        type: string
+      required: true
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid session
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Authenticated but not allowed (e.g. not a participant)
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource does not exist
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Resource state conflicts with the request
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    UnprocessableEntity:
+      description: |
+        Validation failed. The `details` object carries the offending
+        `field` and `reason` (or a `fields` array for batch failures).
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    PayloadTooLarge:
+      description: Upload exceeds the configured maximum size
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    UnsupportedMediaType:
+      description: Content-Type is not in the allow-list
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+        Retry-After:
+          description: Seconds the client should wait before retrying.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: Service is not ready (e.g. database not reachable)
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+# Default security for every operation that does not override it.
+# Only the session cookie is a true per-request requirement. The CSRF
+# double-submit token is NOT modelled as global security on purpose:
+# it is required *only on state-changing methods* (POST/PATCH/DELETE),
+# a condition OpenAPI's security model cannot express per-method. That
+# rule is specified precisely in the "Authentication" section of the
+# API description and enforced by the server's CSRF middleware. The
+# CsrfHeader scheme remains defined so clients/tooling can reference
+# it; it is applied in prose, not as a blanket requirement that would
+# wrongly imply GETs need an X-CSRF-Token.
+security:
+  - SessionCookie: []
