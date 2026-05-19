@@ -1,6 +1,8 @@
 # BrotherBand-Cygnus-
 
-A Go version of the BrotherBand protocol made using SOLID, tests and Clean Architecture, Clean Coding and (some) OOP. Lighter. Faster. Swifter.
+A Go version of the BrotherBand protocol made using SOLID, tests and Clean Architecture, Clean Coding and (some) OOP.
+
+Lighter. Faster. Swifter.
 
 ![BB Cygnus Logo](bb-cygnus-logo.png)
 
