@@ -2,7 +2,7 @@
 
 A Go version of the BrotherBand protocol made using SOLID, tests and Clean Architecture, Clean Coding and (some) OOP.
 
-<center> Lighter. Faster. Swifter. <center>
+<center>Lighter. Faster. Swifter.</center>
 
 ![BB Cygnus Logo](bb-cygnus-logo.png)
 
