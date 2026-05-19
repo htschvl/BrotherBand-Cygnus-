@@ -608,7 +608,7 @@ Copy `.env.example` to `.env`; the defaults work against the local docker-compos
 |------------------------|----------|---------------------------------|---------|
 | `APP_ENV`              | no       | `development`                   | `development` \| `staging` \| `production` (controls `Secure` cookies) |
 | `LOG_LEVEL`            | no       | `info`                          | `debug` \| `info` \| `warn` \| `error` |
-| `HTTP_ADDR`            | no       | `:8080`                         | listen address |
+| `HTTP_ADDR`            | no       | `:3000`                         | listen address |
 | `HTTP_ALLOWED_ORIGINS` | no       | `http://localhost:5173`         | comma-separated CORS allow-list |
 | `HTTP_COOKIE_DOMAIN`   | no       | (empty)                         | cookie `Domain` attribute |
 | `DATABASE_URL`         | **yes**  | —                               | pgx/v5 DSN |
@@ -640,7 +640,7 @@ cp .env.example .env             # defaults target the compose stack
 make run                         # or: make build && ./bin/brotherband-api
 ```
 
-`GET http://localhost:8080/healthz` confirms liveness.
+`GET http://localhost:3000/healthz` confirms liveness.
 
 ### Make targets
 
