@@ -796,7 +796,7 @@ Explicit, accepted trade-offs — chosen, not overlooked:
 
 ## 20. License
 
-ISC.
+**AGPL-3.0**
 
 ---
 
@@ -807,7 +807,7 @@ The product, technical, and architecture briefs this implementation follows:
 - [`docs/brotherband-cygnus-doc-biz.md`](docs/brotherband-cygnus-doc-biz.md) — business / product
 - [`docs/brotherband-cygnus-doc-tech.md`](docs/brotherband-cygnus-doc-tech.md) — technical
 - [`docs/brotherband-cygnus-doc-architecture.md`](docs/brotherband-cygnus-doc-architecture.md) — backend architecture
-- [`docs/brotherband-cygnus-doc-frontend.md`](docs/brotherband-cygnus-doc-frontend.md) — **frontend implementation guide (Svelte 5 + TypeScript)**, audited against `api/openapi.yaml`
+- [`docs/brotherband-cygnus-doc-frontend.md`](docs/brotherband-cygnus-doc-frontend.md) — frontend implementation guide (Svelte 5 + TypeScript), audited against `api/openapi.yaml`
 
 Where implementation experience diverged from the architecture brief, the code is the
 authority and the divergence is documented here (notably: hand-written `pgx` over
