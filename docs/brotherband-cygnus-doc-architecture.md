@@ -222,8 +222,8 @@ sql:
         out: "generated"
         sql_package: "pgx/v5"
         emit_json_tags: true
-        emit_pointers_for_null_types: true   # see §13 known gaps
-        emit_interface: true                 # generates Querier interface
+        emit_pointers_for_null_types: true # see §13 known gaps
+        emit_interface: true # generates Querier interface
         emit_db_tags: true
 ```
 
@@ -367,12 +367,12 @@ O(offset + limit) and breaks when messages are inserted between requests.
 
 R2's free tier is permanent — it does not expire or convert to a trial. Monthly allowances:
 
-| Resource | Free allowance |
-|---|---|
-| Storage | 10 GB |
-| Class A operations (writes/uploads) | 1 million |
-| Class B operations (reads/downloads) | 10 million |
-| Egress (bandwidth out) | **Free, always, no limit** |
+| Resource                             | Free allowance             |
+| ------------------------------------ | -------------------------- |
+| Storage                              | 10 GB                      |
+| Class A operations (writes/uploads)  | 1 million                  |
+| Class B operations (reads/downloads) | 10 million                 |
+| Egress (bandwidth out)               | **Free, always, no limit** |
 
 > **Gotcha:** Cloudflare requires a credit card on file to enable R2, even on the free
 > tier. No charges occur unless you exceed the limits above.
@@ -381,13 +381,13 @@ R2 is S3-compatible — `aws-sdk-go-v2` works against it with a custom endpoint.
 
 ### Upload constraints
 
-| Constraint | Value | Enforced by |
-|---|---|---|
-| Allowed MIME types | `image/jpeg`, `image/png`, `image/webp` | Server before signing |
-| Max file size | **10 MB** | Signed `Content-Length` on presigned URL |
-| Presigned URL TTL | 15 minutes | `s3.WithPresignExpires` |
-| Presign endpoint rate limit | **20 req / min, global** | In-process token bucket |
-| Orphan cleanup | R2 lifecycle rule, `pending/` prefix, 24 h | R2 bucket config |
+| Constraint                  | Value                                      | Enforced by                              |
+| --------------------------- | ------------------------------------------ | ---------------------------------------- |
+| Allowed MIME types          | `image/jpeg`, `image/png`, `image/webp`    | Server before signing                    |
+| Max file size               | **10 MB**                                  | Signed `Content-Length` on presigned URL |
+| Presigned URL TTL           | 15 minutes                                 | `s3.WithPresignExpires`                  |
+| Presign endpoint rate limit | **20 req / min, global**                   | In-process token bucket                  |
+| Orphan cleanup              | R2 lifecycle rule, `pending/` prefix, 24 h | R2 bucket config                         |
 
 ### Upload flow
 
@@ -521,7 +521,9 @@ func PresignRateLimit() func(http.Handler) http.Handler {
       "id": "expire-pending-uploads",
       "enabled": true,
       "conditions": { "prefix": "pending/" },
-      "deleteObjectsTransition": { "condition": { "type": "Age", "maxAge": 86400 } }
+      "deleteObjectsTransition": {
+        "condition": { "type": "Age", "maxAge": 86400 }
+      }
     }
   ]
 }
@@ -545,9 +547,7 @@ messages/{conversationID}/{messageID}/{uuid}.jpg  ← message attachments
     {
       "allowed": {
         "origins": [
-          "https://brotherband.app",
-          "https://staging.brotherband.app",
-          "http://localhost:5173"
+          "http://localhost:3333"
         ],
         "methods": ["PUT"],
         "headers": ["content-type", "content-length"]
@@ -562,7 +562,7 @@ messages/{conversationID}/{messageID}/{uuid}.jpg  ← message attachments
 ### Content-bytes trust note
 
 The presigned URL signs `Content-Type` and `Content-Length`; R2 enforces both. The actual
-*bytes* are not validated. Mitigation: images are served from a separate origin
+_bytes_ are not validated. Mitigation: images are served from a separate origin
 (`cdn.brotherband.app`) with a CSP that disallows script execution. Server-side
 magic-byte sniffing is deferred (see "Known gaps").
 
@@ -591,13 +591,13 @@ Secure + SameSite=Lax cookie. No refresh rotation. No DB-backed token store.**
 
 This is the deliberately simplified model. The cost is real:
 
-| Capability | This model |
-|---|---|
-| Server-side logout (cookie clear) | ✅ This device only |
-| Forced logout all devices | ❌ Not possible (no server-side state) |
-| Revoke on password change | ❌ Existing tokens stay valid |
-| Revoke on token leak | ❌ Token valid until natural expiry |
-| Worst-case compromise window | **Up to 30 days** |
+| Capability                        | This model                             |
+| --------------------------------- | -------------------------------------- |
+| Server-side logout (cookie clear) | ✅ This device only                    |
+| Forced logout all devices         | ❌ Not possible (no server-side state) |
+| Revoke on password change         | ❌ Existing tokens stay valid          |
+| Revoke on token leak              | ❌ Token valid until natural expiry    |
+| Worst-case compromise window      | **Up to 30 days**                      |
 
 Acceptable for a portfolio project with a known, small user base. Upgrade path: add a
 `token_version` column on `users`, embed it in the JWT, compare on every request (one
@@ -607,11 +607,11 @@ indexed read per call). Deferred — see "Known gaps".
 
 ```json
 {
-  "sub":  "user-uuid",
-  "iat":  1730000000,
-  "exp":  1732592000,
-  "iss":  "brotherband",
-  "aud":  "brotherband-web"
+  "sub": "user-uuid",
+  "iat": 1730000000,
+  "exp": 1732592000,
+  "iss": "brotherband",
+  "aud": "brotherband-web"
 }
 ```
 
@@ -903,15 +903,15 @@ implements the generated interface and maps DTOs ↔ domain types.
 
 ```ts
 // web/openapi-ts.config.ts
-import { defineConfig } from '@hey-api/openapi-ts';
+import { defineConfig } from "@hey-api/openapi-ts";
 
 export default defineConfig({
-  input: '../api/openapi.yaml',
-  output: 'src/lib/api',
+  input: "../api/openapi.yaml",
+  output: "src/lib/api",
   plugins: [
-    '@hey-api/client-fetch',
-    { name: '@hey-api/sdk', operationId: true },
-    { name: '@tanstack/svelte-query' },
+    "@hey-api/client-fetch",
+    { name: "@hey-api/sdk", operationId: true },
+    { name: "@tanstack/svelte-query" },
   ],
 });
 ```
@@ -929,13 +929,19 @@ Svelte 5's Runes system. Reactive logic lives in `.svelte.ts` files as plain TS:
 ```ts
 // web/src/lib/stores/user.svelte.ts
 export function createUserStore() {
-    let profile = $state<UserProfile | null>(null);
-    let loading = $derived(profile === null);
-    return {
-        get profile() { return profile; },
-        get loading() { return loading; },
-        setProfile(p: UserProfile) { profile = p; },
-    };
+  let profile = $state<UserProfile | null>(null);
+  let loading = $derived(profile === null);
+  return {
+    get profile() {
+      return profile;
+    },
+    get loading() {
+      return loading;
+    },
+    setProfile(p: UserProfile) {
+      profile = p;
+    },
+  };
 }
 ```
 
@@ -981,32 +987,32 @@ Four-layer pyramid. Each layer answers a specific question; tests in the wrong l
 either retest what a lower layer already covered (slow + redundant) or skip coverage
 entirely.
 
-| Layer | Tests | Dependencies | What it answers | Speed target |
-|---|---|---|---|---|
-| 1 — Unit | domain + usecase | none (hand-rolled fakes) | Does the business logic compute the right answer? | <10 ms/test |
-| 2 — Repository | adapter/persistence | real Postgres, real MinIO | Does the adapter map domain↔DB correctly under real SQL? | <100 ms/test |
-| 3 — HTTP handler | adapter/http | mocked usecase | Wire format, status mapping, CSRF, auth all wired? | <50 ms/test |
-| 4 — E2E | full stack | everything real | Does the system satisfy the contract end-to-end? | <2 s/test |
+| Layer            | Tests               | Dependencies              | What it answers                                          | Speed target |
+| ---------------- | ------------------- | ------------------------- | -------------------------------------------------------- | ------------ |
+| 1 — Unit         | domain + usecase    | none (hand-rolled fakes)  | Does the business logic compute the right answer?        | <10 ms/test  |
+| 2 — Repository   | adapter/persistence | real Postgres, real MinIO | Does the adapter map domain↔DB correctly under real SQL? | <100 ms/test |
+| 3 — HTTP handler | adapter/http        | mocked usecase            | Wire format, status mapping, CSRF, auth all wired?       | <50 ms/test  |
+| 4 — E2E          | full stack          | everything real           | Does the system satisfy the contract end-to-end?         | <2 s/test    |
 
 CI runs all four with `go test -race ./...`. Coverage targets:
 
-| Package | Target |
-|---|---|
-| `domain/` | 95%+ |
-| `usecase/` | 90%+ |
-| `adapter/http/` | 80%+ |
-| `adapter/persistence/` | 75%+ |
-| `infrastructure/` | not a target — exercised by E2E |
+| Package                | Target                          |
+| ---------------------- | ------------------------------- |
+| `domain/`              | 95%+                            |
+| `usecase/`             | 90%+                            |
+| `adapter/http/`        | 80%+                            |
+| `adapter/persistence/` | 75%+                            |
+| `infrastructure/`      | not a target — exercised by E2E |
 
 ### Mocks and fakes — two conventions, intentionally different
 
 **Domain interfaces (repositories, image store) → hand-rolled fakes** in
-`internal/test/fakes/`. Simple maps with mutexes. Unit tests of use cases need *state
-assertion* (after RegisterUser, can I find the user?) — hand-rolled fakes give that
+`internal/test/fakes/`. Simple maps with mutexes. Unit tests of use cases need _state
+assertion_ (after RegisterUser, can I find the user?) — hand-rolled fakes give that
 directly.
 
 **Use-case interfaces (consumed by HTTP handlers) → generated mocks via mockery** in
-`internal/test/mocks/`. Handler tests need *call assertion* (did the handler invoke
+`internal/test/mocks/`. Handler tests need _call assertion_ (did the handler invoke
 `RegisterUser.Execute` with the right Input?) — that's exactly what `testify/mock`
 provides.
 
@@ -1148,6 +1154,7 @@ rollback at `t.Cleanup` reverts every write the test made. Postgres provides iso
 between concurrent transactions — `t.Parallel()` is safe.
 
 **Concrete speed** (M1 local):
+
 - Cold container start: 3–8 s (paid once per package via `WithReuse`)
 - Per-test transaction begin + rollback: ~1 ms
 - Same tests with truncate-between approach: ~10–20 ms per test
@@ -1184,6 +1191,7 @@ func TestRegisterUserHandler_WhenEmailTaken_Returns409(t *testing.T) {
 ```
 
 **Tests at this layer must include:**
+
 - Validation failures (empty body, missing field, malformed JSON) → 400
 - Auth middleware (missing/invalid cookie) → 401
 - CSRF rejection (missing/mismatched token) → 403
@@ -1259,6 +1267,7 @@ func TestMessageAttachmentFlow(t *testing.T) {
 ```
 
 **E2E covers explicit rejection paths the lower layers can only simulate:**
+
 - Upload PUT with mismatched `Content-Length` → R2 returns 400 (signed-length enforcement)
 - Upload PUT after URL expiry → R2 returns 403
 - Presign request with `contentLength > 10 MB` → server returns 413
@@ -1275,9 +1284,10 @@ request ID middleware, and the metrics collectors share state across goroutines;
 detection is non-negotiable.
 
 **Parallelism rules:**
+
 - Unit tests — `t.Parallel()` safe; each test has its own fakes.
 - Handler tests — `t.Parallel()` safe; each test has its own mock + recorder.
-- Repository tests — `t.Parallel()` safe *if* every test uses `withTx`. Postgres handles
+- Repository tests — `t.Parallel()` safe _if_ every test uses `withTx`. Postgres handles
   the concurrency; transactions don't see each other's writes.
 - E2E — sequential by default.
 
@@ -1317,38 +1327,38 @@ inside the transaction.
 
 ## Decision log
 
-| Concern | Decision | Rationale |
-|---|---|---|
-| Layer map | Strict Clean with aggregate-scoped domain packages | SRP at package level; ISP via split interfaces per aggregate |
-| Use-case shape | One struct per operation with own Input/Output DTOs | SRP; mock surface stays minimal |
-| Cross-cutting ports | Live in `usecase/port/` | Inner layer declares the interface, outer layer implements |
-| Adapter vs Infrastructure | Adapter implements an inner interface; Infrastructure is pure wiring | Eliminates the auth/JWT placement ambiguity |
-| HTTP router | Chi | Pure `net/http`; explicit middleware; smaller surface than Echo |
-| Postgres access | sqlc 1.31+ + pgx/v5 with `emit_interface` | Compile-time SQL safety; DBTX interface enables tx-per-test |
-| pgx pool | `MaxConns=25`, lifetime/idle/healthcheck tuned | Explicit limits avoid silent saturation |
-| Single store | Postgres for everything (incl. messages) | Operational simplification; relational queries on messages first-class |
-| Message metadata | `JSONB` column | Variable shape, no schema cost |
-| Message pagination | Cursor (`created_at`, `id`), DESC | O(limit) regardless of position; stable across writes |
-| Image storage | Cloudflare R2 + aws-sdk-go-v2 | Free tier: 10 GB + 1M writes + 10M reads/month, zero egress |
-| Image upload pattern | Presigned PUT URL, size + type bound | Client uploads direct to R2; R2 rejects mismatched headers |
-| Upload size cap | 10 MB, jpg/png/webp only | Hard limit signed into URL |
-| Presign rate limit | Global token bucket, 20 req/min | In-process, no state, no Redis |
-| Orphan blobs | R2 lifecycle rule, `pending/` 24 h | Auto-cleanup of incomplete uploads |
-| Auth | Stateless 30-day JWT in httpOnly cookie | Simplification; no DB lookup on each request |
-| JWT algorithm | HS256 | Symmetric, monolith-only verification |
-| CSRF | SameSite=Lax + double-submit token | Belt and suspenders |
-| Password hashing | argon2id (OWASP-2024 params, host-tuned) | Salt + params embedded in encoded string; no separate column |
-| Schema migrations | goose, embedded, advisory-locked at boot | Transactional by default; minimal moving parts |
-| Observability | slog (JSON) + request ID + Prometheus | Structured logs, correlation, basic metrics surface |
-| Backend OpenAPI | oapi-codegen, spec-first | Generated Chi-compatible server stubs and DTOs |
-| Frontend client | @hey-api/openapi-ts + TanStack Svelte Query | Type-safe generated client; native Svelte 5 integration |
-| Frontend framework | Svelte 5 + SvelteKit + TypeScript | Stable Runes reactivity; first-class TS |
-| Test layer-1 doubles | Hand-rolled fakes for domain interfaces | State assertion needed, not call assertion |
-| Test layer-3 doubles | mockery-generated mocks for use cases | Call assertion is the value at this layer |
-| Test layer-2 isolation | Transaction-per-test via sqlc DBTX | ~1 ms vs ~10–20 ms truncate; parallelism-safe |
-| Test fixtures | Builder pattern in `internal/test/fixtures/` | Absorbs constructor changes |
-| CI test flags | `-race` always on | Catches data races in middleware + rate limiter |
-| Argon2id tuning | Benchmark on target host, aim 100–300 ms/op | Hardware-dependent; OWASP-recommended band |
+| Concern                   | Decision                                                             | Rationale                                                              |
+| ------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Layer map                 | Strict Clean with aggregate-scoped domain packages                   | SRP at package level; ISP via split interfaces per aggregate           |
+| Use-case shape            | One struct per operation with own Input/Output DTOs                  | SRP; mock surface stays minimal                                        |
+| Cross-cutting ports       | Live in `usecase/port/`                                              | Inner layer declares the interface, outer layer implements             |
+| Adapter vs Infrastructure | Adapter implements an inner interface; Infrastructure is pure wiring | Eliminates the auth/JWT placement ambiguity                            |
+| HTTP router               | Chi                                                                  | Pure `net/http`; explicit middleware; smaller surface than Echo        |
+| Postgres access           | sqlc 1.31+ + pgx/v5 with `emit_interface`                            | Compile-time SQL safety; DBTX interface enables tx-per-test            |
+| pgx pool                  | `MaxConns=25`, lifetime/idle/healthcheck tuned                       | Explicit limits avoid silent saturation                                |
+| Single store              | Postgres for everything (incl. messages)                             | Operational simplification; relational queries on messages first-class |
+| Message metadata          | `JSONB` column                                                       | Variable shape, no schema cost                                         |
+| Message pagination        | Cursor (`created_at`, `id`), DESC                                    | O(limit) regardless of position; stable across writes                  |
+| Image storage             | Cloudflare R2 + aws-sdk-go-v2                                        | Free tier: 10 GB + 1M writes + 10M reads/month, zero egress            |
+| Image upload pattern      | Presigned PUT URL, size + type bound                                 | Client uploads direct to R2; R2 rejects mismatched headers             |
+| Upload size cap           | 10 MB, jpg/png/webp only                                             | Hard limit signed into URL                                             |
+| Presign rate limit        | Global token bucket, 20 req/min                                      | In-process, no state, no Redis                                         |
+| Orphan blobs              | R2 lifecycle rule, `pending/` 24 h                                   | Auto-cleanup of incomplete uploads                                     |
+| Auth                      | Stateless 30-day JWT in httpOnly cookie                              | Simplification; no DB lookup on each request                           |
+| JWT algorithm             | HS256                                                                | Symmetric, monolith-only verification                                  |
+| CSRF                      | SameSite=Lax + double-submit token                                   | Belt and suspenders                                                    |
+| Password hashing          | argon2id (OWASP-2024 params, host-tuned)                             | Salt + params embedded in encoded string; no separate column           |
+| Schema migrations         | goose, embedded, advisory-locked at boot                             | Transactional by default; minimal moving parts                         |
+| Observability             | slog (JSON) + request ID + Prometheus                                | Structured logs, correlation, basic metrics surface                    |
+| Backend OpenAPI           | oapi-codegen, spec-first                                             | Generated Chi-compatible server stubs and DTOs                         |
+| Frontend client           | @hey-api/openapi-ts + TanStack Svelte Query                          | Type-safe generated client; native Svelte 5 integration                |
+| Frontend framework        | Svelte 5 + SvelteKit + TypeScript                                    | Stable Runes reactivity; first-class TS                                |
+| Test layer-1 doubles      | Hand-rolled fakes for domain interfaces                              | State assertion needed, not call assertion                             |
+| Test layer-3 doubles      | mockery-generated mocks for use cases                                | Call assertion is the value at this layer                              |
+| Test layer-2 isolation    | Transaction-per-test via sqlc DBTX                                   | ~1 ms vs ~10–20 ms truncate; parallelism-safe                          |
+| Test fixtures             | Builder pattern in `internal/test/fixtures/`                         | Absorbs constructor changes                                            |
+| CI test flags             | `-race` always on                                                    | Catches data races in middleware + rate limiter                        |
+| Argon2id tuning           | Benchmark on target host, aim 100–300 ms/op                          | Hardware-dependent; OWASP-recommended band                             |
 
 ---
 

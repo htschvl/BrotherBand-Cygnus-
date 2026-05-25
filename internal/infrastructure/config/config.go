@@ -75,8 +75,8 @@ func Load() (Config, error) {
 	cfg := Config{
 		Env: env,
 		HTTP: HTTPConfig{
-			Addr:           getEnvOr("HTTP_ADDR", ":8080"),
-			AllowedOrigins: splitCSV(getEnvOr("HTTP_ALLOWED_ORIGINS", "http://localhost:5173")),
+			Addr:           getEnvOr("HTTP_ADDR", ":3000"),
+			AllowedOrigins: splitCSV(getEnvOr("HTTP_ALLOWED_ORIGINS", "http://localhost:3333")),
 			CookieDomain:   os.Getenv("HTTP_COOKIE_DOMAIN"),
 			SecureCookies:  env.IsProduction(),
 		},

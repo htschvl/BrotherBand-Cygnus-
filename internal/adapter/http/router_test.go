@@ -82,7 +82,7 @@ func newHarness(t *testing.T) *harness {
 	router := httplayer.NewRouter(httplayer.RouterConfig{
 		Logger:         cap.Logger(),
 		Metrics:        observability.NewMetrics(),
-		AllowedOrigins: []string{"http://localhost:5173"},
+		AllowedOrigins: []string{"http://localhost:3333"},
 		TokenIssuer:    tokens,
 		Clock:          clk,
 	}, routes)

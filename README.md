@@ -9,7 +9,7 @@ A Go version of the BrotherBand protocol made using SOLID, tests and Clean Archi
 > Backend HTTP API for **BrotherBand** — a minimalist social network built around small,
 > trusted "brotherband" circles instead of feeds, followers, and engagement metrics.
 >
-> *Cygnus* is the third iteration of the project. It supersedes *Hollow* (the previous
+> _Cygnus_ is the third iteration of the project. It supersedes _Hollow_ (the previous
 > TypeScript / Fastify / MongoDB build) with a Go / Chi / Postgres / R2 stack designed
 > against strict **Clean Architecture**, **Clean Code**, and **SOLID** principles, with
 > comprehensive structured logging, a uniform error model, and a four-layer test strategy.
@@ -64,7 +64,7 @@ pressure.
 - **Intimacy over growth.** The product is designed around emotional safety and
   intentional interaction, not reach.
 
-### The core mechanic: the *brotherband*
+### The core mechanic: the _brotherband_
 
 The relationship primitive is the **brotherband** — a mutual, trusted bond between
 exactly two users. The lifecycle:
@@ -92,18 +92,18 @@ audience-growth seekers, advertisers, or high-frequency content consumers.
 
 ## 2. Tech stack
 
-| Concern          | Choice                                                                  |
-|------------------|-------------------------------------------------------------------------|
-| Language         | Go 1.21+ (developed/verified on Go 1.26)                                 |
-| HTTP router      | `net/http` + [chi v5](https://github.com/go-chi/chi)                     |
-| Persistence      | PostgreSQL 16 via [`pgx/v5`](https://github.com/jackc/pgx) (sqlc-compatible spec) |
-| Object storage   | Cloudflare R2 (S3-compatible) via `aws-sdk-go-v2`                        |
+| Concern          | Choice                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| Language         | Go 1.21+ (developed/verified on Go 1.26)                                                 |
+| HTTP router      | `net/http` + [chi v5](https://github.com/go-chi/chi)                                     |
+| Persistence      | PostgreSQL 16 via [`pgx/v5`](https://github.com/jackc/pgx) (sqlc-compatible spec)        |
+| Object storage   | Cloudflare R2 (S3-compatible) via `aws-sdk-go-v2`                                        |
 | Auth             | Stateless 30-day JWT (HS256, `golang-jwt/v5`) in an httpOnly cookie + double-submit CSRF |
-| Password hashing | argon2id (`golang.org/x/crypto/argon2`, OWASP-2024 params)              |
-| Migrations       | [goose v3](https://github.com/pressly/goose), embedded, advisory-locked  |
-| Observability    | `log/slog` (JSON) + Prometheus (`client_golang`) + request IDs           |
-| API contract     | [`api/openapi.yaml`](api/openapi.yaml) — OpenAPI 3.1, source of truth    |
-| Testing          | stdlib `testing` + `httptest` + Testcontainers (layer-2, Docker-gated)   |
+| Password hashing | argon2id (`golang.org/x/crypto/argon2`, OWASP-2024 params)                               |
+| Migrations       | [goose v3](https://github.com/pressly/goose), embedded, advisory-locked                  |
+| Observability    | `log/slog` (JSON) + Prometheus (`client_golang`) + request IDs                           |
+| API contract     | [`api/openapi.yaml`](api/openapi.yaml) — OpenAPI 3.1, source of truth                    |
+| Testing          | stdlib `testing` + `httptest` + Testcontainers (layer-2, Docker-gated)                   |
 
 No ORM. No DI framework. No code generation is required to build (the sqlc spec is
 committed but the repositories are hand-written `pgx` — see §17).
@@ -136,13 +136,13 @@ sweep) — not merely by convention.
 
 **The Dependency Rule, concretely:**
 
-| Layer              | May import                                  | May **not** import                          |
-|--------------------|---------------------------------------------|---------------------------------------------|
-| `domain/`          | stdlib, `google/uuid` only                  | anything else in this module; any framework |
-| `usecase/`         | `domain/`, `usecase/port/`                  | `adapter/`, `infrastructure/`               |
-| `adapter/`         | `usecase/`, `domain/`, `platform/`          | `infrastructure/` (except wiring types)     |
-| `infrastructure/`  | anything (it is the outermost wiring)       | —                                           |
-| `cmd/api/main.go`  | everything (composition root)               | —                                           |
+| Layer             | May import                            | May **not** import                          |
+| ----------------- | ------------------------------------- | ------------------------------------------- |
+| `domain/`         | stdlib, `google/uuid` only            | anything else in this module; any framework |
+| `usecase/`        | `domain/`, `usecase/port/`            | `adapter/`, `infrastructure/`               |
+| `adapter/`        | `usecase/`, `domain/`, `platform/`    | `infrastructure/` (except wiring types)     |
+| `infrastructure/` | anything (it is the outermost wiring) | —                                           |
+| `cmd/api/main.go` | everything (composition root)         | —                                           |
 
 **Why this matters:** the business rules (`domain/`) and the application logic
 (`usecase/`) have **no knowledge of HTTP, Postgres, R2, JWT, or chi**. You could replace
@@ -231,13 +231,13 @@ no `time.Now()` (time is injected). Every aggregate owns its entity, value objec
 repository **interfaces** (ports), and error sentinels in one package (SRP at the
 package level; aggregates never import each other, so import cycles cannot form).
 
-| Package              | Responsibility |
-|----------------------|----------------|
-| `domain/shared`      | The `ID` value type (UUID wrapper with JSON marshalling), base error sentinels (`ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrInvalidInput`, `ErrUnauthenticated`), and the typed `ValidationError` / `ValidationErrors` carrying `Field`+`Reason`. |
-| `domain/user`        | `User` aggregate; value objects `Username`, `PasswordHash`, `Birthdate`, `Secret`, `Status`, `Favorites` (each validates its own invariant and returns a typed `ValidationError`); `Reader`/`Writer`/`StatusUpdater`/`AvatarUpdater` ports split per ISP; user error sentinels. |
+| Package              | Responsibility                                                                                                                                                                                                                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain/shared`      | The `ID` value type (UUID wrapper with JSON marshalling), base error sentinels (`ErrNotFound`, `ErrConflict`, `ErrForbidden`, `ErrInvalidInput`, `ErrUnauthenticated`), and the typed `ValidationError` / `ValidationErrors` carrying `Field`+`Reason`.                                               |
+| `domain/user`        | `User` aggregate; value objects `Username`, `PasswordHash`, `Birthdate`, `Secret`, `Status`, `Favorites` (each validates its own invariant and returns a typed `ValidationError`); `Reader`/`Writer`/`StatusUpdater`/`AvatarUpdater` ports split per ISP; user error sentinels.                       |
 | `domain/brotherband` | `Request` and `Brotherhood` aggregates; the brotherhood is **symmetric** and order-independent (`Includes`/`Other`); `RequestRepository`/`BrotherhoodRepository` ports + read models; sentinels (`ErrSelfRequest`, `ErrAlreadyBrothers`, `ErrRequestExists`, `ErrNotABrother`, `ErrNotRecipient`, …). |
-| `domain/message`     | `Message`, `Conversation`, `Attachment` aggregates; `Body` value object; the opaque pagination `Cursor` (base64-encoded `(created_at, id)` keyset); `MessageReader`/`MessageWriter`/`ConversationRepository` ports; sentinels. |
-| `domain/media`       | The `ImageStore` port; the closed set of allowed content types; `MaxUploadBytes`; `ParseContentType` / `ValidateContentLength` (typed validation errors); media sentinels. |
+| `domain/message`     | `Message`, `Conversation`, `Attachment` aggregates; `Body` value object; the opaque pagination `Cursor` (base64-encoded `(created_at, id)` keyset); `MessageReader`/`MessageWriter`/`ConversationRepository` ports; sentinels.                                                                        |
+| `domain/media`       | The `ImageStore` port; the closed set of allowed content types; `MaxUploadBytes`; `ParseContentType` / `ValidateContentLength` (typed validation errors); media sentinels.                                                                                                                            |
 
 ### `internal/usecase/` — application logic
 
@@ -368,16 +368,16 @@ Entities are immutable; mutations return a copy (`WithStatus`, `WithAvatarKey`,
 
 **Value-object invariants (enforced in `domain/`, returning typed `ValidationError`):**
 
-| Value object | Invariant |
-|--------------|-----------|
-| `Username`   | 3–32 chars; letters/digits/`_`/`-` only; trimmed; case-preserving (CITEXT at DB) |
-| Password     | 8–128 chars (`ValidateRawPassword`; the raw password never enters domain state) |
-| `Birthdate`  | parseable `YYYY-MM-DD` calendar date |
-| `Secret`     | 1–280 chars after trimming |
-| `Status`     | 1–280 chars after trimming |
+| Value object | Invariant                                                                               |
+| ------------ | --------------------------------------------------------------------------------------- |
+| `Username`   | 3–32 chars; letters/digits/`_`/`-` only; trimmed; case-preserving (CITEXT at DB)        |
+| Password     | 8–128 chars (`ValidateRawPassword`; the raw password never enters domain state)         |
+| `Birthdate`  | parseable `YYYY-MM-DD` calendar date                                                    |
+| `Secret`     | 1–280 chars after trimming                                                              |
+| `Status`     | 1–280 chars after trimming                                                              |
 | `Favorites`  | **exactly 5** non-empty entries, each ≤ 80 chars (the "small circle" product invariant) |
-| `Body`       | 1–4000 chars after trimming |
-| `Attachment` | non-empty media key + content type, positive size |
+| `Body`       | 1–4000 chars after trimming                                                             |
+| `Attachment` | non-empty media key + content type, positive size                                       |
 
 **Aggregate invariants:**
 
@@ -428,7 +428,7 @@ message_attachments(id, message_id→messages, media_key, content_type,
   canonicalises with `LEAST/GREATEST` on every operation; domain code stays
   order-agnostic.
 - **Cursor pagination.** `messages` is indexed on `(conversation_id, created_at DESC,
-  id DESC)`, making the keyset predicate an index-only range scan. Offset pagination
+id DESC)`, making the keyset predicate an index-only range scan. Offset pagination
   is intentionally avoided (it degrades to O(offset) and breaks under concurrent
   inserts). The cursor is an **opaque** base64 token; clients must not parse it.
 - **Conversations are N-participant in the schema** even though Cygnus only creates
@@ -441,9 +441,9 @@ message_attachments(id, message_id→messages, media_key, content_type,
 **A single stateless JWT, 30-day expiry, HS256-signed, in an httpOnly + Secure +
 SameSite=Lax cookie. No refresh rotation. No DB-backed session store.**
 
-| Cookie       | HttpOnly | Purpose |
-|--------------|----------|---------|
-| `bb_session` | **yes**  | the JWT (`sub`=user id). JS cannot read it; XSS cannot steal it. |
+| Cookie       | HttpOnly | Purpose                                                            |
+| ------------ | -------- | ------------------------------------------------------------------ |
+| `bb_session` | **yes**  | the JWT (`sub`=user id). JS cannot read it; XSS cannot steal it.   |
 | `bb_csrf`    | no       | 32 random bytes; the SPA reads it and echoes it as `X-CSRF-Token`. |
 
 **CSRF — double-submit token.** State-changing **authenticated** requests must send a
@@ -454,7 +454,7 @@ the double-submit token is defence in depth.
 
 **The `/v1/auth/*` CSRF exemption (deliberate, documented).** `register`, `login`, and
 `logout` are **not** behind the CSRF check. The check requires the client to echo
-`bb_csrf`, but register/login are the endpoints that *issue* that cookie — gating them
+`bb_csrf`, but register/login are the endpoints that _issue_ that cookie — gating them
 on it is an impossible bootstrap. Cross-site POSTs to them are already blocked by the
 `SameSite=Lax` session cookie and the strict CORS allow-list; the double-submit token
 then guards every authenticated state-changing request. Logout is a low-severity
@@ -463,7 +463,7 @@ annoyance if forced and is likewise `SameSite`-protected. This is reflected in
 
 **Password hashing — argon2id**, OWASP-2024 "interactive" params (`m=19 MiB, t=2,
 p=1`), salt + params embedded in the encoded string (no separate salt column).
-Verification is constant-time; a malformed *stored* hash is collapsed to
+Verification is constant-time; a malformed _stored_ hash is collapsed to
 `ErrInvalidCredentials` (never disclosed to the client) but logged as a
 data-integrity alarm.
 
@@ -491,7 +491,7 @@ Images never pass through the API server. The flow:
 - Keys: `pending/{userId}/{uuid}{ext}` → promoted to
   `avatars/{userId}/…` or `messages/{convId}/{msgId}/…`. Anything left under
   `pending/` for 24 h is swept by an R2 lifecycle rule.
-- **Ownership is enforced**: a media key must live under the *caller's* `pending/`
+- **Ownership is enforced**: a media key must live under the _caller's_ `pending/`
   prefix, or promotion is refused (`ErrPromotionFailed`) and logged at WARN — this is
   the "broken access control" guard.
 - The presign endpoint is rate-limited by an in-process token bucket
@@ -527,10 +527,13 @@ The response body:
 
 ```json
 {
-  "code": "user.password_too_weak",      // stable, machine-readable; switch on this
+  "code": "user.password_too_weak", // stable, machine-readable; switch on this
   "message": "invalid password: must be between 8 and 128 characters",
-  "requestId": "0192e…",                 // correlate with server logs & bug reports
-  "details": { "field": "password", "reason": "must be between 8 and 128 characters" }
+  "requestId": "0192e…", // correlate with server logs & bug reports
+  "details": {
+    "field": "password",
+    "reason": "must be between 8 and 128 characters"
+  }
 }
 ```
 
@@ -570,12 +573,12 @@ correlation fields — no logger argument is threaded through signatures.
 
 **Level discipline** (consistent across the codebase):
 
-| Level   | Used for |
-|---------|----------|
-| `DEBUG` | high-volume / low-signal (validation rejections, auth cookie probes) |
+| Level   | Used for                                                                                                                                        |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEBUG` | high-volume / low-signal (validation rejections, auth cookie probes)                                                                            |
 | `INFO`  | successful business outcomes (`user registered`, `message sent`, …) and meaningful product rejections (`login failed: bad password` with cause) |
-| `WARN`  | expected-but-notable (username taken, broken-access-control attempts, readiness blips, R2 orphan self-heals) |
-| `ERROR` | unexpected infrastructure failures, panics, 5xx |
+| `WARN`  | expected-but-notable (username taken, broken-access-control attempts, readiness blips, R2 orphan self-heals)                                    |
+| `ERROR` | unexpected infrastructure failures, panics, 5xx                                                                                                 |
 
 Attribute keys are centralised in `platform/logging/attrs.go` (one constant per key —
 no `userID` vs `user_id` drift). The access log's level tracks the response status
@@ -606,23 +609,23 @@ pattern**, not the concrete URL, so path parameters don't explode cardinality.
 All configuration is environment-driven and validated at boot (`internal/infrastructure/config`).
 Copy `.env.example` to `.env`; the defaults work against the local docker-compose stack.
 
-| Variable               | Required | Default                         | Purpose |
-|------------------------|----------|---------------------------------|---------|
-| `APP_ENV`              | no       | `development`                   | `development` \| `staging` \| `production` (controls `Secure` cookies) |
-| `LOG_LEVEL`            | no       | `info`                          | `debug` \| `info` \| `warn` \| `error` |
-| `HTTP_ADDR`            | no       | `:3000`                         | listen address |
-| `HTTP_ALLOWED_ORIGINS` | no       | `http://localhost:5173`         | comma-separated CORS allow-list |
-| `HTTP_COOKIE_DOMAIN`   | no       | (empty)                         | cookie `Domain` attribute |
-| `DATABASE_URL`         | **yes**  | —                               | pgx/v5 DSN |
-| `JWT_SECRET`           | **yes**  | —                               | ≥ 32 chars; HS256 signing key |
-| `JWT_ISSUER`           | no       | `brotherband`                   | JWT `iss` |
-| `JWT_AUDIENCE`         | no       | `brotherband-web`               | JWT `aud` |
-| `JWT_TTL_HOURS`        | no       | `720` (30 days)                 | token lifetime |
-| `R2_ACCOUNT_ID`        | **yes**  | —                               | Cloudflare R2 account |
-| `R2_ACCESS_KEY_ID`     | **yes**  | —                               | R2 access key |
-| `R2_SECRET_ACCESS_KEY` | **yes**  | —                               | R2 secret |
-| `R2_BUCKET`            | **yes**  | —                               | R2 bucket name |
-| `R2_CDN_BASE_URL`      | **yes**  | —                               | public CDN base URL for stored media |
+| Variable               | Required | Default                 | Purpose                                                                |
+| ---------------------- | -------- | ----------------------- | ---------------------------------------------------------------------- |
+| `APP_ENV`              | no       | `development`           | `development` \| `staging` \| `production` (controls `Secure` cookies) |
+| `LOG_LEVEL`            | no       | `info`                  | `debug` \| `info` \| `warn` \| `error`                                 |
+| `HTTP_ADDR`            | no       | `:3000`                 | listen address                                                         |
+| `HTTP_ALLOWED_ORIGINS` | no       | `http://localhost:3333` | comma-separated CORS allow-list                                        |
+| `HTTP_COOKIE_DOMAIN`   | no       | (empty)                 | cookie `Domain` attribute                                              |
+| `DATABASE_URL`         | **yes**  | —                       | pgx/v5 DSN                                                             |
+| `JWT_SECRET`           | **yes**  | —                       | ≥ 32 chars; HS256 signing key                                          |
+| `JWT_ISSUER`           | no       | `brotherband`           | JWT `iss`                                                              |
+| `JWT_AUDIENCE`         | no       | `brotherband-web`       | JWT `aud`                                                              |
+| `JWT_TTL_HOURS`        | no       | `720` (30 days)         | token lifetime                                                         |
+| `R2_ACCOUNT_ID`        | **yes**  | —                       | Cloudflare R2 account                                                  |
+| `R2_ACCESS_KEY_ID`     | **yes**  | —                       | R2 access key                                                          |
+| `R2_SECRET_ACCESS_KEY` | **yes**  | —                       | R2 secret                                                              |
+| `R2_BUCKET`            | **yes**  | —                       | R2 bucket name                                                         |
+| `R2_CDN_BASE_URL`      | **yes**  | —                       | public CDN base URL for stored media                                   |
 
 Missing/invalid required variables abort startup with a structured ERROR log naming
 every offending variable, and a non-zero exit code.
@@ -646,18 +649,18 @@ make run                         # or: make build && ./bin/brotherband-api
 
 ### Make targets
 
-| Target                 | What it does |
-|------------------------|--------------|
-| `make run`             | run the API in the foreground |
-| `make build`           | compile `bin/brotherband-api` with version stamping |
-| `make test`            | race-enabled unit + handler + HTTP tests (no Docker needed) |
-| `make test-cover`      | the above with a coverage profile |
-| `make test-integration`| repository-layer tests against ephemeral Postgres (**Docker required**) |
-| `make vet` / `make fmt`| `go vet` / `gofmt -s -w` |
-| `make lint`            | `staticcheck` (install separately) |
-| `make sqlc`            | regenerate the sqlc query code from the committed spec |
-| `make migrate`         | apply migrations against `$DATABASE_URL` (goose CLI) |
-| `make dev-up` / `dev-down` | start / stop the local Postgres + MinIO stack |
+| Target                     | What it does                                                            |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `make run`                 | run the API in the foreground                                           |
+| `make build`               | compile `bin/brotherband-api` with version stamping                     |
+| `make test`                | race-enabled unit + handler + HTTP tests (no Docker needed)             |
+| `make test-cover`          | the above with a coverage profile                                       |
+| `make test-integration`    | repository-layer tests against ephemeral Postgres (**Docker required**) |
+| `make vet` / `make fmt`    | `go vet` / `gofmt -s -w`                                                |
+| `make lint`                | `staticcheck` (install separately)                                      |
+| `make sqlc`                | regenerate the sqlc query code from the committed spec                  |
+| `make migrate`             | apply migrations against `$DATABASE_URL` (goose CLI)                    |
+| `make dev-up` / `dev-down` | start / stop the local Postgres + MinIO stack                           |
 
 ---
 
@@ -668,28 +671,28 @@ the full stable error-code registry, the `X-Request-ID` header, and field-level
 validation `details`. It is written for `@hey-api/openapi-ts` to generate a
 type-safe Svelte 5 + TypeScript client (cookie auth, CSRF header).
 
-| Method & path | Auth | Purpose |
-|---|---|---|
-| `GET /healthz` / `GET /readyz` | none | liveness / readiness |
-| `GET /metrics` | none | Prometheus scrape |
-| `POST /v1/auth/register` | none | create account; sets `bb_session` + `bb_csrf` |
-| `POST /v1/auth/login` | none | authenticate; sets cookies |
-| `POST /v1/auth/logout` | none | clear cookies (this device) |
-| `GET /v1/me` | session | the authenticated user's profile |
-| `PATCH /v1/me/status` | session+csrf | update status |
-| `PATCH /v1/me/avatar` | session+csrf | promote a pending media key to the avatar |
-| `GET /v1/brothers` | session | list confirmed brothers |
-| `GET /v1/brothers/{id}` | session | one brother's public profile |
-| `DELETE /v1/brothers/{id}` | session+csrf | cut the brotherband |
-| `GET /v1/brotherband-requests` | session | pending requests (received/sent/all) |
-| `POST /v1/brotherband-requests/send/{recipientId}` | session+csrf | send a request |
-| `POST /v1/brotherband-requests/{id}/accept` | session+csrf | accept (one-shot secret reveal) |
-| `POST /v1/brotherband-requests/{id}/deny` | session+csrf | deny |
-| `GET /v1/conversations` | session | conversation list (one row per brother) |
-| `GET /v1/conversations/with/{brotherId}/messages` | session | cursor-paginated messages |
-| `POST /v1/conversations/with/{brotherId}/messages` | session+csrf | send a message |
-| `PATCH /v1/messages/{id}/attachment` | session+csrf | attach a previously uploaded media key |
-| `POST /v1/media/upload-url` | session+csrf | request a presigned R2 PUT URL (rate-limited) |
+| Method & path                                      | Auth         | Purpose                                       |
+| -------------------------------------------------- | ------------ | --------------------------------------------- |
+| `GET /healthz` / `GET /readyz`                     | none         | liveness / readiness                          |
+| `GET /metrics`                                     | none         | Prometheus scrape                             |
+| `POST /v1/auth/register`                           | none         | create account; sets `bb_session` + `bb_csrf` |
+| `POST /v1/auth/login`                              | none         | authenticate; sets cookies                    |
+| `POST /v1/auth/logout`                             | none         | clear cookies (this device)                   |
+| `GET /v1/me`                                       | session      | the authenticated user's profile              |
+| `PATCH /v1/me/status`                              | session+csrf | update status                                 |
+| `PATCH /v1/me/avatar`                              | session+csrf | promote a pending media key to the avatar     |
+| `GET /v1/brothers`                                 | session      | list confirmed brothers                       |
+| `GET /v1/brothers/{id}`                            | session      | one brother's public profile                  |
+| `DELETE /v1/brothers/{id}`                         | session+csrf | cut the brotherband                           |
+| `GET /v1/brotherband-requests`                     | session      | pending requests (received/sent/all)          |
+| `POST /v1/brotherband-requests/send/{recipientId}` | session+csrf | send a request                                |
+| `POST /v1/brotherband-requests/{id}/accept`        | session+csrf | accept (one-shot secret reveal)               |
+| `POST /v1/brotherband-requests/{id}/deny`          | session+csrf | deny                                          |
+| `GET /v1/conversations`                            | session      | conversation list (one row per brother)       |
+| `GET /v1/conversations/with/{brotherId}/messages`  | session      | cursor-paginated messages                     |
+| `POST /v1/conversations/with/{brotherId}/messages` | session+csrf | send a message                                |
+| `PATCH /v1/messages/{id}/attachment`               | session+csrf | attach a previously uploaded media key        |
+| `POST /v1/media/upload-url`                        | session+csrf | request a presigned R2 PUT URL (rate-limited) |
 
 ---
 
@@ -698,12 +701,12 @@ type-safe Svelte 5 + TypeScript client (cookie auth, CSRF header).
 A four-layer pyramid. Each layer answers one question; tests in the wrong layer either
 retest a lower layer or skip coverage entirely.
 
-| Layer | Tests | Doubles | What it answers |
-|---|---|---|---|
-| 1 — Unit | `domain/`, `usecase/`, `platform/` | hand-rolled fakes / `Fixed` clock / `Capture` logger | Does the business logic compute the right answer **and log the right thing**? |
-| 2 — Repository | `adapter/persistence/` | real Postgres (Testcontainers) | Does the adapter map domain ↔ SQL correctly? *(Docker-gated: `make test-integration`)* |
-| 3 — HTTP | `adapter/http/...` | fake-backed use cases, full chi router | Wire format, status mapping, CSRF, auth, cookies, request-id — all wired? |
-| 4 — E2E | full router via `httptest.Server` | everything in-memory but real wiring | Does the product flow work end to end? |
+| Layer          | Tests                              | Doubles                                              | What it answers                                                                        |
+| -------------- | ---------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 1 — Unit       | `domain/`, `usecase/`, `platform/` | hand-rolled fakes / `Fixed` clock / `Capture` logger | Does the business logic compute the right answer **and log the right thing**?          |
+| 2 — Repository | `adapter/persistence/`             | real Postgres (Testcontainers)                       | Does the adapter map domain ↔ SQL correctly? _(Docker-gated: `make test-integration`)_ |
+| 3 — HTTP       | `adapter/http/...`                 | fake-backed use cases, full chi router               | Wire format, status mapping, CSRF, auth, cookies, request-id — all wired?              |
+| 4 — E2E        | full router via `httptest.Server`  | everything in-memory but real wiring                 | Does the product flow work end to end?                                                 |
 
 **Conventions:**
 
@@ -731,22 +734,22 @@ test `Capture` handler share state across goroutines.
 
 ## 17. Design decisions & trade-offs
 
-| Decision | Rationale |
-|---|---|
-| Strict Clean Architecture, aggregate-scoped domain packages | SRP at the package level; ISP via split repository interfaces; the Dependency Rule is grep-verifiable |
-| One struct per use case | SRP-maximal; the mock surface stays minimal; handlers depend on exactly the operation they call |
-| Input/Output DTOs at both the use-case and HTTP boundary | domain types never leak out; HTTP shapes never leak in |
-| Cross-cutting ports in `usecase/port` | the inner layer declares the contract; the outer layer implements it (explicit Dependency Inversion) |
+| Decision                                                                       | Rationale                                                                                                                                         |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Strict Clean Architecture, aggregate-scoped domain packages                    | SRP at the package level; ISP via split repository interfaces; the Dependency Rule is grep-verifiable                                             |
+| One struct per use case                                                        | SRP-maximal; the mock surface stays minimal; handlers depend on exactly the operation they call                                                   |
+| Input/Output DTOs at both the use-case and HTTP boundary                       | domain types never leak out; HTTP shapes never leak in                                                                                            |
+| Cross-cutting ports in `usecase/port`                                          | the inner layer declares the contract; the outer layer implements it (explicit Dependency Inversion)                                              |
 | Hand-written `pgx` repositories, sqlc spec committed but not required to build | the project compiles with zero codegen; `make sqlc` regenerates typed queries when desired; the `DBTX` seam keeps tx-per-test possible either way |
-| Canonical single-row brotherhood | a symmetric relationship with exactly one source of truth and one row to cut |
-| Cursor (keyset) pagination, opaque token | O(limit) regardless of position; stable under concurrent inserts |
-| Direct-to-R2 presigned uploads | the API never serves image bytes; one signing op + one DB write per upload |
-| Stateless 30-day JWT in httpOnly cookie | operational simplicity; no session store, no per-request DB lookup |
-| CSRF double-submit, `/v1/auth/*` exempt | you cannot gate the endpoint that issues the token on the token; SameSite+CORS cover the bootstrap |
-| `respond` as a sibling package; one `writeError` in middleware | breaks the router↔handler import cycle; single-sources the error envelope (parity-tested) |
-| Context-bound logger | correlation fields attach once; no logger threaded through every signature |
-| Typed `ValidationError` with multi-unwrap | one error matches both the specific sentinel and the broad category, and carries the field for the API |
-| Clock injected everywhere | deterministic time-sensitive tests; no `time.Now()` in business logic |
+| Canonical single-row brotherhood                                               | a symmetric relationship with exactly one source of truth and one row to cut                                                                      |
+| Cursor (keyset) pagination, opaque token                                       | O(limit) regardless of position; stable under concurrent inserts                                                                                  |
+| Direct-to-R2 presigned uploads                                                 | the API never serves image bytes; one signing op + one DB write per upload                                                                        |
+| Stateless 30-day JWT in httpOnly cookie                                        | operational simplicity; no session store, no per-request DB lookup                                                                                |
+| CSRF double-submit, `/v1/auth/*` exempt                                        | you cannot gate the endpoint that issues the token on the token; SameSite+CORS cover the bootstrap                                                |
+| `respond` as a sibling package; one `writeError` in middleware                 | breaks the router↔handler import cycle; single-sources the error envelope (parity-tested)                                                         |
+| Context-bound logger                                                           | correlation fields attach once; no logger threaded through every signature                                                                        |
+| Typed `ValidationError` with multi-unwrap                                      | one error matches both the specific sentinel and the broad category, and carries the field for the API                                            |
+| Clock injected everywhere                                                      | deterministic time-sensitive tests; no `time.Now()` in business logic                                                                             |
 
 ---
 
@@ -755,17 +758,17 @@ test `Capture` handler share state across goroutines.
 Explicit, accepted trade-offs — chosen, not overlooked:
 
 1. **No JWT revocation.** A leaked `bb_session` is valid until 30-day expiry; password
-   change doesn't invalidate tokens. *Upgrade:* `token_version` column embedded in the
+   change doesn't invalidate tokens. _Upgrade:_ `token_version` column embedded in the
    JWT, compared per request.
-2. **No per-user rate limiting.** The presign limiter is global. *Upgrade:* in-process
+2. **No per-user rate limiting.** The presign limiter is global. _Upgrade:_ in-process
    LRU keyed by user id, or a Postgres sliding-window counter.
 3. **No magic-byte validation of uploaded images.** MIME is asserted by the client and
    enforced by R2 on header match only. Mitigated by a separate CDN origin + CSP.
-   *Upgrade:* server-side `http.DetectContentType` on the first 512 bytes post-upload.
-4. **No distributed tracing.** Single-service deployment doesn't need it. *Upgrade:*
+   _Upgrade:_ server-side `http.DetectContentType` on the first 512 bytes post-upload.
+4. **No distributed tracing.** Single-service deployment doesn't need it. _Upgrade:_
    OpenTelemetry SDK + OTLP exporter + a tracing middleware.
 5. **No background job runner.** Async work (reconciliation sweeps) is deferred.
-   *Upgrade:* a Postgres-backed queue (e.g. River).
+   _Upgrade:_ a Postgres-backed queue (e.g. River).
 6. **Conversation list lacks last-message/unread metadata.** Ships with brother
    metadata only in this iteration; `last_read_at` exists in the schema for it.
 7. **Layer-2 repository tests require Docker** (`make test-integration`); not in the
@@ -784,7 +787,7 @@ Explicit, accepted trade-offs — chosen, not overlooked:
 - **Doc comments**: every exported type, function, and constructor has a doc comment
   (verified by an audit scan). **Deliberate exception:** trivial single-expression
   accessors (`func (u User) ID() shared.ID { return u.id }`) are intentionally left
-  bare — per *Effective Go* and Clean Code, a comment that restates the name is noise,
+  bare — per _Effective Go_ and Clean Code, a comment that restates the name is noise,
   not documentation, and the standard library follows the same convention. The
   aggregate types themselves are documented; that is the correct boundary.
 - **Logging**: use `logging.FromContext(ctx)`; never `slog.Default()` in request paths

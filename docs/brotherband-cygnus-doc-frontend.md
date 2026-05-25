@@ -36,18 +36,18 @@ Read this top to bottom once; every section builds on the auth/CSRF model in §3
 
 ## 1. What you are building against
 
-| Fact | Value |
-|---|---|
-| API base (dev) | `http://localhost:3000` |
-| API contract | `api/openapi.yaml` (OpenAPI 3.1) — the single source of truth |
-| Auth transport | **cookies**, not `Authorization` headers |
-| Session cookie | `bb_session` — **httpOnly** (JS cannot read it), JWT, 30-day |
-| CSRF cookie | `bb_csrf` — readable by JS, 32-byte random |
+| Fact             | Value                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| API base (dev)   | `http://localhost:3000`                                                                                                       |
+| API contract     | `api/openapi.yaml` (OpenAPI 3.1) — the single source of truth                                                                 |
+| Auth transport   | **cookies**, not `Authorization` headers                                                                                      |
+| Session cookie   | `bb_session` — **httpOnly** (JS cannot read it), JWT, 30-day                                                                  |
+| CSRF cookie      | `bb_csrf` — readable by JS, 32-byte random                                                                                    |
 | CSRF requirement | echo `bb_csrf` as the `X-CSRF-Token` header on **state-changing** requests only (POST/PATCH/DELETE) — **except** `/v1/auth/*` |
-| Error shape | uniform envelope: `{ code, message, requestId, details? }` |
-| IDs | UUID strings |
-| Timestamps | RFC 3339 strings |
-| Pagination | opaque cursor string (never parse it) |
+| Error shape      | uniform envelope: `{ code, message, requestId, details? }`                                                                    |
+| IDs              | UUID strings                                                                                                                  |
+| Timestamps       | RFC 3339 strings                                                                                                              |
+| Pagination       | opaque cursor string (never parse it)                                                                                         |
 
 The recommended stack (matches the backend architecture doc):
 
@@ -113,7 +113,7 @@ Everything in the client depends on understanding this exactly.
    harmless but unnecessary.
 
 4. **`/v1/auth/register`, `/v1/auth/login`, `/v1/auth/logout` are CSRF-exempt** — they
-   are the endpoints that *issue* `bb_csrf`, so they cannot require it. Do **not**
+   are the endpoints that _issue_ `bb_csrf`, so they cannot require it. Do **not**
    send `X-CSRF-Token` to them (it is simply ignored).
 
 5. **There is no "get me a token" endpoint and no localStorage token.** Auth state is
@@ -135,15 +135,15 @@ Everything in the client depends on understanding this exactly.
 `web/openapi-ts.config.ts`:
 
 ```ts
-import { defineConfig } from '@hey-api/openapi-ts';
+import { defineConfig } from "@hey-api/openapi-ts";
 
 export default defineConfig({
-  input: '../api/openapi.yaml',
-  output: { path: 'src/lib/api', format: 'prettier' },
+  input: "../api/openapi.yaml",
+  output: { path: "src/lib/api", format: "prettier" },
   plugins: [
-    '@hey-api/client-fetch',
-    { name: '@hey-api/sdk', operationId: true }, // function names from operationId
-    '@hey-api/typescript',                       // request/response types
+    "@hey-api/client-fetch",
+    { name: "@hey-api/sdk", operationId: true }, // function names from operationId
+    "@hey-api/typescript", // request/response types
   ],
 });
 ```
@@ -182,24 +182,26 @@ every request; **(b)** attach `X-CSRF-Token` on state-changing requests.
 `web/src/lib/client.ts`:
 
 ```ts
-import { client } from '$lib/api/client.gen';
+import { client } from "$lib/api/client.gen";
 
 /** Read a non-httpOnly cookie by name (bb_csrf is readable; bb_session is not). */
 function readCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null; // SSR guard
+  if (typeof document === "undefined") return null; // SSR guard
   const match = document.cookie.match(
-    new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()[\]\\/+^]/g, '\\$&') + '=([^;]*)'),
+    new RegExp(
+      "(?:^|; )" + name.replace(/[.$?*|{}()[\]\\/+^]/g, "\\$&") + "=([^;]*)",
+    ),
   );
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const STATE_CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export function configureApiClient(baseUrl: string) {
   client.setConfig({
     baseUrl,
     // (a) send & receive the bb_session / bb_csrf cookies cross-origin.
-    credentials: 'include',
+    credentials: "include",
   });
 
   // (b) double-submit CSRF: echo the bb_csrf cookie as X-CSRF-Token on
@@ -208,8 +210,8 @@ export function configureApiClient(baseUrl: string) {
   //     when present.
   client.interceptors.request.use((request) => {
     if (STATE_CHANGING.has(request.method.toUpperCase())) {
-      const csrf = readCookie('bb_csrf');
-      if (csrf) request.headers.set('X-CSRF-Token', csrf);
+      const csrf = readCookie("bb_csrf");
+      if (csrf) request.headers.set("X-CSRF-Token", csrf);
     }
     return request;
   });
@@ -219,8 +221,8 @@ export function configureApiClient(baseUrl: string) {
 Call it once at app startup — `web/src/routes/+layout.ts`:
 
 ```ts
-import { configureApiClient } from '$lib/client';
-import { PUBLIC_API_BASE_URL } from '$env/static/public';
+import { configureApiClient } from "$lib/client";
+import { PUBLIC_API_BASE_URL } from "$env/static/public";
 
 export const ssr = false; // this client is cookie/CSR-based; render on the client
 
@@ -239,7 +241,7 @@ configureApiClient(PUBLIC_API_BASE_URL); // e.g. http://localhost:3000
 `web/src/lib/query.ts`:
 
 ```ts
-import { QueryClient } from '@tanstack/svelte-query';
+import { QueryClient } from "@tanstack/svelte-query";
 
 export function makeQueryClient() {
   return new QueryClient({
@@ -250,7 +252,8 @@ export function makeQueryClient() {
           // Never retry auth/permission/validation failures — they are
           // deterministic given the same input.
           const status = (err as { status?: number })?.status;
-          if (status && [400, 401, 403, 404, 409, 415, 422].includes(status)) return false;
+          if (status && [400, 401, 403, 404, 409, 415, 422].includes(status))
+            return false;
           return count < 2;
         },
       },
@@ -283,17 +286,23 @@ Reactive state lives in a `.svelte.ts` module as plain runes — no legacy store
 `web/src/lib/stores/session.svelte.ts`:
 
 ```ts
-import type { UserProfile } from '$lib/api/types.gen';
-import { getMyProfile, logoutUser } from '$lib/api/sdk.gen';
+import type { UserProfile } from "$lib/api/types.gen";
+import { getMyProfile, logoutUser } from "$lib/api/sdk.gen";
 
 function createSession() {
   let profile = $state<UserProfile | null>(null);
   let loaded = $state(false); // false until the first /v1/me probe resolves
 
   return {
-    get profile() { return profile; },
-    get isAuthenticated() { return profile !== null; },
-    get loaded() { return loaded; },
+    get profile() {
+      return profile;
+    },
+    get isAuthenticated() {
+      return profile !== null;
+    },
+    get loaded() {
+      return loaded;
+    },
 
     /** Probe the session on app start / after auth mutations. */
     async refresh() {
@@ -303,10 +312,13 @@ function createSession() {
     },
 
     /** Called by login/register flows with the returned profile. */
-    set(p: UserProfile) { profile = p; loaded = true; },
+    set(p: UserProfile) {
+      profile = p;
+      loaded = true;
+    },
 
     async logout() {
-      await logoutUser();      // server clears bb_session + bb_csrf
+      await logoutUser(); // server clears bb_session + bb_csrf
       profile = null;
     },
   };
@@ -318,7 +330,7 @@ export const session = createSession();
 Probe once at startup (extend `+layout.ts`):
 
 ```ts
-import { session } from '$lib/stores/session.svelte';
+import { session } from "$lib/stores/session.svelte";
 // ... after configureApiClient(...)
 await session.refresh();
 ```
@@ -333,11 +345,11 @@ Every non-2xx response is the **same shape** (verified against the server's
 ```ts
 // matches components.schemas.Error in the spec
 export interface ApiErrorBody {
-  code: string;                  // STABLE — switch on this, never on `message`
-  message: string;               // human-readable, safe to show
-  requestId?: string;            // put this in bug reports / support tickets
+  code: string; // STABLE — switch on this, never on `message`
+  message: string; // human-readable, safe to show
+  requestId?: string; // put this in bug reports / support tickets
   details?: {
-    field?: string;              // present on 422 validation failures
+    field?: string; // present on 422 validation failures
     reason?: string;
     fields?: { field: string; reason: string }[]; // batch validation
     [k: string]: unknown;
@@ -348,31 +360,44 @@ export interface ApiErrorBody {
 `web/src/lib/errors.ts`:
 
 ```ts
-import type { ApiErrorBody } from './errors.types';
+import type { ApiErrorBody } from "./errors.types";
 
 /** hey-api returns { data, error }. `error` is the parsed ApiErrorBody. */
 export function isApiError(e: unknown): e is ApiErrorBody {
-  return !!e && typeof e === 'object' && 'code' in e && 'message' in e;
+  return !!e && typeof e === "object" && "code" in e && "message" in e;
 }
 
 /** Map a code to a user-facing message. Switch on CODE, not message text. */
 export function humanize(err: ApiErrorBody): string {
   switch (err.code) {
-    case 'user.username_taken':       return 'That username is already taken.';
-    case 'user.invalid_credentials':  return 'Wrong username or password.';
-    case 'user.password_too_weak':    return 'Password must be 8–128 characters.';
-    case 'brotherband.already_brothers': return 'You are already brothers.';
-    case 'brotherband.request_exists':   return 'A request is already pending.';
-    case 'brotherband.not_a_brother':    return 'You are not brothers with this user.';
-    case 'brotherband.not_recipient':    return 'Only the recipient can act on this request.';
-    case 'message.invalid_body':         return 'Message cannot be empty.';
-    case 'media.payload_too_large':      return 'Image must be at most 10 MB.';
-    case 'media.unsupported_type':       return 'Only JPEG, PNG or WebP are allowed.';
-    case 'csrf.mismatch':                return 'Your session expired — please reload.';
-    case 'rate_limited':                 return 'Too many requests — slow down a moment.';
+    case "user.username_taken":
+      return "That username is already taken.";
+    case "user.invalid_credentials":
+      return "Wrong username or password.";
+    case "user.password_too_weak":
+      return "Password must be 8–128 characters.";
+    case "brotherband.already_brothers":
+      return "You are already brothers.";
+    case "brotherband.request_exists":
+      return "A request is already pending.";
+    case "brotherband.not_a_brother":
+      return "You are not brothers with this user.";
+    case "brotherband.not_recipient":
+      return "Only the recipient can act on this request.";
+    case "message.invalid_body":
+      return "Message cannot be empty.";
+    case "media.payload_too_large":
+      return "Image must be at most 10 MB.";
+    case "media.unsupported_type":
+      return "Only JPEG, PNG or WebP are allowed.";
+    case "csrf.mismatch":
+      return "Your session expired — please reload.";
+    case "rate_limited":
+      return "Too many requests — slow down a moment.";
     default:
       // field-level validation detail, when present
-      if (err.details?.reason) return `Invalid ${err.details.field}: ${err.details.reason}`;
+      if (err.details?.reason)
+        return `Invalid ${err.details.field}: ${err.details.reason}`;
       return err.message;
   }
 }
@@ -418,20 +443,20 @@ Registration is identical but calls `registerUser({ body: { username, password,
 birthdate, secret, status, favorites } })`. **Validation rules the form must enforce
 (mirrors the server; a violation returns `422` with `details.field`):**
 
-| Field | Rule |
-|---|---|
-| `username` | 3–32 chars; letters/digits/`_`/`-`; unique |
-| `password` | 8–128 chars |
-| `birthdate` | `YYYY-MM-DD` |
-| `secret` | 1–280 chars |
-| `status` | 1–280 chars |
+| Field       | Rule                                             |
+| ----------- | ------------------------------------------------ |
+| `username`  | 3–32 chars; letters/digits/`_`/`-`; unique       |
+| `password`  | 8–128 chars                                      |
+| `birthdate` | `YYYY-MM-DD`                                     |
+| `secret`    | 1–280 chars                                      |
+| `status`    | 1–280 chars                                      |
 | `favorites` | **exactly 5** non-empty strings, each ≤ 80 chars |
 
 Logout:
 
 ```ts
 await session.logout();
-await goto('/login');
+await goto("/login");
 ```
 
 ### 9.2 The session guard & route protection
@@ -441,14 +466,14 @@ Put protected pages under a route group whose `+layout.ts` enforces auth:
 `web/src/routes/(app)/+layout.ts`:
 
 ```ts
-import { redirect } from '@sveltejs/kit';
-import { session } from '$lib/stores/session.svelte';
+import { redirect } from "@sveltejs/kit";
+import { session } from "$lib/stores/session.svelte";
 
 export const ssr = false;
 
 export async function load() {
   if (!session.loaded) await session.refresh();
-  if (!session.isAuthenticated) throw redirect(302, '/login');
+  if (!session.isAuthenticated) throw redirect(302, "/login");
 }
 ```
 
@@ -457,10 +482,12 @@ Add a global response interceptor so an expired session anywhere bounces to logi
 ```ts
 // in client.ts, after the request interceptor
 client.interceptors.response.use((response) => {
-  if (response.status === 401 && typeof window !== 'undefined') {
+  if (response.status === 401 && typeof window !== "undefined") {
     // session gone — drop local state; route guard handles the redirect
-    import('$lib/stores/session.svelte').then((m) => m.session.set(null as never));
-    if (location.pathname !== '/login') location.assign('/login');
+    import("$lib/stores/session.svelte").then((m) =>
+      m.session.set(null as never),
+    );
+    if (location.pathname !== "/login") location.assign("/login");
   }
   return response;
 });
@@ -504,12 +531,12 @@ must capture and persist it client-side at accept time.
 Pending requests list:
 
 ```ts
-import { createQuery } from '@tanstack/svelte-query';
-import { listBrotherbandRequests } from '$lib/api/sdk.gen';
+import { createQuery } from "@tanstack/svelte-query";
+import { listBrotherbandRequests } from "$lib/api/sdk.gen";
 
 const requests = createQuery({
-  queryKey: ['brotherband-requests'],
-  queryFn: () => listBrotherbandRequests({ query: { direction: 'all' } }),
+  queryKey: ["brotherband-requests"],
+  queryFn: () => listBrotherbandRequests({ query: { direction: "all" } }),
 });
 // → data.received: BrotherbandRequest[],  data.sent: BrotherbandRequest[]
 ```
@@ -520,18 +547,18 @@ The cursor is **opaque** — store it, send it back, never parse it. `nextCursor
 `null` when there are no more pages.
 
 ```ts
-import { createInfiniteQuery } from '@tanstack/svelte-query';
-import { listMessagesWithBrother } from '$lib/api/sdk.gen';
+import { createInfiniteQuery } from "@tanstack/svelte-query";
+import { listMessagesWithBrother } from "$lib/api/sdk.gen";
 
 export function messages(brotherId: string) {
   return createInfiniteQuery({
-    queryKey: ['messages', brotherId],
+    queryKey: ["messages", brotherId],
     queryFn: ({ pageParam }) =>
       listMessagesWithBrother({
         path: { brotherId },
         query: { limit: 50, cursor: pageParam || undefined },
       }),
-    initialPageParam: '',
+    initialPageParam: "",
     // server returns newest-first; nextCursor === null means done
     getNextPageParam: (last) => last.data?.nextCursor ?? undefined,
   });
@@ -541,7 +568,7 @@ export function messages(brotherId: string) {
 Send a message (a conversation is created on the first message automatically):
 
 ```ts
-import { sendMessageToBrother } from '$lib/api/sdk.gen';
+import { sendMessageToBrother } from "$lib/api/sdk.gen";
 await sendMessageToBrother({ path: { brotherId }, body: { body: text } });
 // 403 brotherband.not_a_brother if you are not brothers
 // 422 message.invalid_body if empty/too long (1–4000 chars)
@@ -651,12 +678,12 @@ PUBLIC_API_BASE_URL=http://localhost:3000
 ```
 
 **Dev cookie correctness (the classic footgun):** the frontend runs on
-`http://localhost:5173`, the API on `http://localhost:3000`. These are different
-*origins* but the same *site* (`localhost`), so `SameSite=Lax` cookies are sent on
+`http://localhost:3333`, the API on `http://localhost:3000`. These are different
+_origins_ but the same _site_ (`localhost`), so `SameSite=Lax` cookies are sent on
 these cross-origin-but-same-site requests when `credentials: 'include'` is set. It
 works **only because**:
 
-- the backend's `HTTP_ALLOWED_ORIGINS` includes `http://localhost:5173` (and `:3000`),
+- the backend's `HTTP_ALLOWED_ORIGINS` includes `http://localhost:3333` (and `:3000`),
   and its CORS layer echoes the origin with `Access-Control-Allow-Credentials: true`;
 - in `APP_ENV=development` the cookies are **not** `Secure`, so they survive plain
   `http`.
@@ -676,26 +703,26 @@ CSRF model then holds without changes.
 
 With `operationId: true`, the generated SDK function name **is** the operationId.
 
-| SDK function | Method & path | Notes |
-|---|---|---|
-| `registerUser` | `POST /v1/auth/register` | sets cookies; no CSRF |
-| `loginUser` | `POST /v1/auth/login` | sets cookies; no CSRF |
-| `logoutUser` | `POST /v1/auth/logout` | clears cookies; no CSRF |
-| `getMyProfile` | `GET /v1/me` | session probe |
-| `updateMyStatus` | `PATCH /v1/me/status` | CSRF |
-| `updateMyAvatar` | `PATCH /v1/me/avatar` | CSRF; step 3 of upload |
-| `listBrothers` | `GET /v1/brothers` | |
-| `getBrotherProfile` | `GET /v1/brothers/{brotherId}` | |
-| `cutBrotherband` | `DELETE /v1/brothers/{brotherId}` | CSRF |
-| `listBrotherbandRequests` | `GET /v1/brotherband-requests` | `?direction=received\|sent\|all` |
-| `sendBrotherbandRequest` | `POST /v1/brotherband-requests/send/{recipientId}` | CSRF |
-| `acceptBrotherbandRequest` | `POST /v1/brotherband-requests/{requestId}/accept` | CSRF; **one-shot secret** |
-| `denyBrotherbandRequest` | `POST /v1/brotherband-requests/{requestId}/deny` | CSRF |
-| `listConversations` | `GET /v1/conversations` | the inbox |
-| `listMessagesWithBrother` | `GET /v1/conversations/with/{brotherId}/messages` | `?cursor=&limit=` |
-| `sendMessageToBrother` | `POST /v1/conversations/with/{brotherId}/messages` | CSRF |
-| `attachMediaToMessage` | `PATCH /v1/messages/{messageId}/attachment` | CSRF; step 3 of upload |
-| `requestUploadUrl` | `POST /v1/media/upload-url` | CSRF; step 1 of upload; rate-limited |
+| SDK function               | Method & path                                      | Notes                                |
+| -------------------------- | -------------------------------------------------- | ------------------------------------ |
+| `registerUser`             | `POST /v1/auth/register`                           | sets cookies; no CSRF                |
+| `loginUser`                | `POST /v1/auth/login`                              | sets cookies; no CSRF                |
+| `logoutUser`               | `POST /v1/auth/logout`                             | clears cookies; no CSRF              |
+| `getMyProfile`             | `GET /v1/me`                                       | session probe                        |
+| `updateMyStatus`           | `PATCH /v1/me/status`                              | CSRF                                 |
+| `updateMyAvatar`           | `PATCH /v1/me/avatar`                              | CSRF; step 3 of upload               |
+| `listBrothers`             | `GET /v1/brothers`                                 |                                      |
+| `getBrotherProfile`        | `GET /v1/brothers/{brotherId}`                     |                                      |
+| `cutBrotherband`           | `DELETE /v1/brothers/{brotherId}`                  | CSRF                                 |
+| `listBrotherbandRequests`  | `GET /v1/brotherband-requests`                     | `?direction=received\|sent\|all`     |
+| `sendBrotherbandRequest`   | `POST /v1/brotherband-requests/send/{recipientId}` | CSRF                                 |
+| `acceptBrotherbandRequest` | `POST /v1/brotherband-requests/{requestId}/accept` | CSRF; **one-shot secret**            |
+| `denyBrotherbandRequest`   | `POST /v1/brotherband-requests/{requestId}/deny`   | CSRF                                 |
+| `listConversations`        | `GET /v1/conversations`                            | the inbox                            |
+| `listMessagesWithBrother`  | `GET /v1/conversations/with/{brotherId}/messages`  | `?cursor=&limit=`                    |
+| `sendMessageToBrother`     | `POST /v1/conversations/with/{brotherId}/messages` | CSRF                                 |
+| `attachMediaToMessage`     | `PATCH /v1/messages/{messageId}/attachment`        | CSRF; step 3 of upload               |
+| `requestUploadUrl`         | `POST /v1/media/upload-url`                        | CSRF; step 1 of upload; rate-limited |
 
 `getLiveness` / `getReadiness` (`/healthz`, `/readyz`) exist but are infra probes —
 the UI normally doesn't call them.
@@ -731,17 +758,27 @@ the UI normally doesn't call them.
 ## Appendix: minimal end-to-end smoke (no UI)
 
 ```ts
-import { configureApiClient } from '$lib/client';
-import { registerUser, getMyProfile, listConversations } from '$lib/api/sdk.gen';
+import { configureApiClient } from "$lib/client";
+import {
+  registerUser,
+  getMyProfile,
+  listConversations,
+} from "$lib/api/sdk.gen";
 
-configureApiClient('http://localhost:3000');
+configureApiClient("http://localhost:3000");
 
-await registerUser({ body: {
-  username: 'web_demo', password: 'Hunter2!Hunter2', birthdate: '1995-01-01',
-  secret: 'the owl flies at dusk', status: 'hi', favorites: ['a','b','c','d','e'],
-}});
-console.log((await getMyProfile()).data);        // the profile (cookies now set)
-console.log((await listConversations()).data);   // { conversations: [] } initially
+await registerUser({
+  body: {
+    username: "web_demo",
+    password: "Hunter2!Hunter2",
+    birthdate: "1995-01-01",
+    secret: "the owl flies at dusk",
+    status: "hi",
+    favorites: ["a", "b", "c", "d", "e"],
+  },
+});
+console.log((await getMyProfile()).data); // the profile (cookies now set)
+console.log((await listConversations()).data); // { conversations: [] } initially
 ```
 
 This guide tracks `api/openapi.yaml`. If the two ever disagree, the spec — and the
